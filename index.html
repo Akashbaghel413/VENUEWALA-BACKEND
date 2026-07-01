@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Venuewala Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f7f8fa; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { background: #fff; border-radius: 12px; padding: 40px; width: 100%; max-width: 400px; box-shadow: 0 2px 16px rgba(0,0,0,0.10); text-align: center; }
+    .logo { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; }
+    .logo-icon { width: 36px; height: 36px; background: #1D9E75; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 16px; }
+    .logo-text { font-size: 22px; font-weight: 700; }
+    .logo-text span { color: #E8593C; }
+    h2 { font-size: 20px; font-weight: 600; margin: 16px 0 4px; }
+    p { color: #777; font-size: 13px; margin-bottom: 28px; }
+    .g-wrapper { display: flex; justify-content: center; margin-bottom: 20px; }
+    .divider { color: #aaa; font-size: 12px; margin: 16px 0; }
+    .result { margin-top: 24px; padding: 16px; border-radius: 8px; font-size: 13px; display: none; }
+    .result.success { background: #E1F5EE; color: #0F6E56; }
+    .result.error { background: #FCEBEB; color: #A32D2D; }
+    .user-photo { width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 10px; display: block; border: 3px solid #1D9E75; }
+    .user-name { font-size: 16px; font-weight: 700; color: #1a1a1a; }
+    .user-email { font-size: 12px; color: #777; margin-top: 2px; }
+    .user-role { display: inline-block; margin-top: 8px; background: #E1F5EE; color: #0F6E56; border-radius: 20px; padding: 3px 12px; font-size: 11px; font-weight: 600; }
+    .booking-id { background: #f5f5f5; border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #555; margin-top: 10px; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">V</div>
+    <div class="logo-text">Venue<span>wala</span></div>
+  </div>
+  <h2>Login to your account</h2>
+  <p>Welcome back to Venuewala</p>
+
+  <div class="g-wrapper">
+    <div id="g_id_onload"
+      data-client_id="795743482262-3j4nnda7nreb3uarmlvd80d8vpstd64t.apps.googleusercontent.com"
+      data-callback="handleGoogleLogin"
+      data-auto_prompt="false">
+    </div>
+    <div class="g_id_signin"
+      data-type="standard"
+      data-size="large"
+      data-theme="outline"
+      data-text="continue_with"
+      data-shape="rectangular"
+      data-logo_alignment="left">
+    </div>
+  </div>
+
+  <div class="divider">— or —</div>
+  <p style="font-size:12px;color:#aaa">Email/password login coming soon</p>
+
+  <div class="result" id="result"></div>
+</div>
+
+<script>
+async function handleGoogleLogin(response) {
+  const resultBox = document.getElementById('result');
+  resultBox.style.display = 'none';
+
+  try {
+    const res = await fetch('http://localhost:4000/api/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        credential: response.credential,
+        intendedRole: 'customer'
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+
+    resultBox.className = 'result success';
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = `
+      <img class="user-photo" src="${data.user.photo || 'https://i.pravatar.cc/100'}" onerror="this.src='https://i.pravatar.cc/100'">
+      <div class="user-name">Welcome, ${data.user.name}! 🎉</div>
+      <div class="user-email">${data.user.email}</div>
+      <div class="user-role">${data.user.role === 'owner' ? '🏛️ Venue Owner' : '👤 Customer'}</div>
+      <div class="booking-id">User ID: VW-${String(data.user.id).padStart(5,'0')}</div>
+    `;
+
+  } catch (err) {
+    resultBox.className = 'result error';
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = '❌ ' + err.message;
+  }
+}
+</script>
+</body>
+</html>
