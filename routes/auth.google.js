@@ -78,11 +78,11 @@ router.post('/api/auth/google', async (req, res) => {
     );
 
     res.cookie('venuewala_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+  httpOnly: true,
+  secure: true,
+  sameSite: 'none',
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+});
 
     return res.status(200).json({
       user: {

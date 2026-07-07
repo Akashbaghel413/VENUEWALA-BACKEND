@@ -9,8 +9,19 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(__dirname));
 
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 
@@ -35,7 +46,11 @@ app.get('/api/me', requireAuth, (req, res) => {
 });
 
 app.post('/api/auth/logout', (req, res) => {
-  res.clearCookie('venuewala_token');
+  res.clearCookie('venuewala_token', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+  });
   res.json({ success: true });
 });
 
