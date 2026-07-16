@@ -2,9 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
-
 const app = express();
-
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(__dirname));
@@ -28,18 +26,10 @@ app.use(cors({
 const googleAuthRoutes = require('./routes/auth.google');
 app.use(googleAuthRoutes);
 
-const jwt = require('jsonwebtoken');
+const venuesRoutes = require('./routes/venues');
+app.use(venuesRoutes);
 
-function requireAuth(req, res, next) {
-  const token = req.cookies.venuewala_token;
-  if (!token) return res.status(401).json({ error: 'Not logged in' });
-  try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Session expired, please log in again' });
-  }
-}
+const { requireAuth } = require('./middleware/auth');
 
 app.get('/api/me', requireAuth, (req, res) => {
   res.json({ userId: req.user.userId, role: req.user.role });
