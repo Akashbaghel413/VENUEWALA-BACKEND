@@ -435,4 +435,144 @@ function seedIfEmpty() {
 
 seedIfEmpty();
 
-module.exports = { users, venues, reviews };
+module.exports = { users, venues, reviews };// ---- BOOKINGS (added for real booking flow) ----
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS bookings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    venue_id INTEGER NOT NULL REFERENCES venues(id),
+    owner_id INTEGER REFERENCES users(id),
+    event_date TEXT NOT NULL,
+    slot TEXT NOT NULL,
+    guests INTEGER NOT NULL,
+    event_type TEXT,
+    food_pref TEXT,
+    special_requests TEXT,
+    contact_name TEXT NOT NULL,
+    contact_phone TEXT NOT NULL,
+    contact_email TEXT NOT NULL,
+    base_price INTEGER NOT NULL,
+    catering_cost INTEGER NOT NULL DEFAULT 0,
+    platform_fee INTEGER NOT NULL,
+    gst_on_platform INTEGER NOT NULL,
+    total INTEGER NOT NULL,
+    advance_paid INTEGER NOT NULL,
+    balance_due INTEGER NOT NULL,
+    payment_method TEXT,
+    status TEXT NOT NULL DEFAULT 'confirmed',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+function mapBookingRow(row) {
+  if (!row) return null;
+  return {
+    id: `VW-${row.id}`,
+    venueId: String(row.venue_id),
+    eventDate: row.event_date,
+    slot: row.slot,
+    guests: row.guests,
+    eventType: row.event_type,
+    foodPref: row.food_pref,
+    specialRequests: row.special_requests,
+    contactName: row.contact_name,
+    contactPhone: row.contact_phone,
+    contactEmail: row.contact_email,
+    basePrice: row.base_price,
+    cateringCost: row.catering_cost,
+    platformFee: row.platform_fee,
+    gstOnPlatform: row.gst_on_platform,
+    total: row.total,
+    advancePaid: row.advance_paid,
+    balanceDue: row.balance_due,
+    paymentMethod: row.payment_method,
+    status: row.status,
+    createdAt: row.created_at,
+  };
+}
+
+const bookings = {
+  create(userId, data) {
+    const venue = venues.getById(data.venueId);
+    if (!venue) throw new Error('Venue not found');
+
+    const ownerRow = db.prepare('SELECT owner_id FROM venues WHERE id = ?').get(data.venueId);
+
+    const result = db
+      .prepare(
+        `INSERT INTO bookings
+          (user_id, venue_id, owner_id, event_date, slot, guests, event_type, food_pref,
+           special_requests, contact_name, contact_phone, contact_email, base_price,
+           catering_cost, platform_fee, gst_on_platform, total, advance_paid, balance_due,
+           payment_method, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed')`
+      )
+      .run(
+        userId,
+        data.venueId,
+        ownerRow ? ownerRow.owner_id : null,
+        data.eventDate,
+        data.slot,
+        data.guests,
+        data.eventType || '',
+        data.foodPref || '',
+        data.specialRequests || '',
+        data.contactName,
+        data.contactPhone,
+        data.contactEmail,
+        data.basePrice,
+        data.cateringCost || 0,
+        data.platformFee,
+        data.gstOnPlatform,
+        data.total,
+        data.advancePaid,
+        data.balanceDue,
+        data.paymentMethod || ''
+      );
+
+    return bookings.getById(result.lastInsertRowid);
+  },
+
+  getById(id) {
+    const row = db.prepare('SELECT * FROM bookings WHERE id = ?').get(id);
+    return mapBookingRow(row);
+  },
+
+  listByUser(userId) {
+    const rows = db
+      .prepare('SELECT * FROM bookings WHERE user_id = ? ORDER BY created_at DESC')
+      .all(userId);
+    return rows.map((row) => {
+      const venue = venues.getById(row.venue_id);
+      return {
+        ...mapBookingRow(row),
+        venueName: venue ? venue.name : 'Unknown venue',
+        venueImage: venue ? venue.images[0] : '',
+        venueArea: venue ? `${venue.area}, ${venue.city}` : '',
+      };
+    });
+  },
+
+  listByOwner(ownerId) {
+    const rows = db
+      .prepare('SELECT * FROM bookings WHERE owner_id = ? ORDER BY created_at DESC')
+      .all(ownerId);
+    return rows.map((row) => {
+      const venue = venues.getById(row.venue_id);
+      return {
+        ...mapBookingRow(row),
+        venueName: venue ? venue.name : 'Unknown venue',
+      };
+    });
+  },
+
+  cancel(id, userId) {
+    const row = db.prepare('SELECT * FROM bookings WHERE id = ?').get(id);
+    if (!row || row.user_id !== userId) return null;
+    db.prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?").run(id);
+    return bookings.getById(id);
+  },
+};
+
+module.exports = { users, venues, reviews, bookings };

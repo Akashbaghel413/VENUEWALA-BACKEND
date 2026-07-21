@@ -29,6 +29,9 @@ app.use(googleAuthRoutes);
 const venuesRoutes = require('./routes/venues');
 app.use(venuesRoutes);
 
+const bookingsRoutes = require('./routes/bookings');
+app.use(bookingsRoutes);
+
 const { requireAuth } = require('./middleware/auth');
 
 app.get('/api/me', requireAuth, (req, res) => {
